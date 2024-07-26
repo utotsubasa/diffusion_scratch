@@ -1,0 +1,18 @@
+{
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "ms-python.isort",
+      "ms-vsliveshare.vsliveshare",
+      "njpwerner.autodocstring",
+      "ms-python.black-formatter",
+      "mhutchie.git-graph",
+      "donjayamanne.githistory",
+      "eamodio.gitlens",
+      "ms-azuretools.vscode-docker",
+      "ms-toolsai.tensorboard",
+      "shd101wyy.markdown-preview-enhanced",
+      "yzhang.markdown-all-in-one"
+    ]
+  }
+  
