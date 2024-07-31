@@ -3,13 +3,7 @@
 #
 sandbox
 playground
-*.zip
-*.jpg
-*.jpeg
-*.JPG
-*.JPEG
-*.png
-*.PNG
+**/outputs
 **/data
 
 # Byte-compiled / optimized / DLL files

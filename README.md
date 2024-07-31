@@ -36,7 +36,7 @@ https://proceedings.neurips.cc/paper/2020/hash/4c5bcfec8584af0d967f1ab10179ca4b-
     Sample config files are in `configs`, and you can specify them like
     `../configs/mnist.yaml`
 
-## Overview
+## Structure Overview
 #### `diffusing`
 A core framework for forward and reverse process
 - `noising`: A package related to forward/noising process
@@ -45,3 +45,19 @@ A core framework for forward and reverse process
 A package for training diffusion models using `diffusing` package
 #### `models`
 A sample target model is here. You can use your own models.
+
+## Training Results
+### MNIST
+epoch=50
+
+<img src="resources/mnist_epoch50.png">
+
+### CIFAR10
+epoch=100
+
+<img src="resources/cifar_epoch100.png">
+
+### CelebA-HQ
+epoch=500
+
+<img src="resources/celeba_500.png">
