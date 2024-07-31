@@ -10,3 +10,4 @@ tensorboard
 rich
 pytest
 setuptools
+omegaconf

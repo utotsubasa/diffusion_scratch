@@ -1,0 +1,17 @@
+# domain related constants
+dataset_type: celeba
+image_type: rgb
+
+# train settings
+batch_size: 32
+num_workers: 16
+num_epochs: 500
+num_timesteps: 1000
+main_device: cuda:0
+resize_hw: [128, 128]
+dataset_root: ../data/celeba/CelebAMask-HQ/CelebA-HQ-img/
+val_freq: 1
+
+# hyper parameters
+timestep_encoded_dim: 100
+lr: 1.e-3

@@ -1,9 +1,16 @@
 #
 # Custom settings
 #
-*.ipynb
 sandbox
 playground
+*.zip
+*.jpg
+*.jpeg
+*.JPG
+*.JPEG
+*.png
+*.PNG
+**/data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from typing import Any
 from .utils import PositionalEncoder
+from .base import DDPMBase
 
 
 class ChannelWiseConv2d(nn.Conv2d):
@@ -110,19 +111,24 @@ class UNet(nn.Module):
         return out
 
 
-class PosEncUNet(nn.Module):
+class PosEncUNet(DDPMBase):
     def __init__(self, num_channels: int, timestep_encoded_dim: int) -> None:
         super().__init__()
 
         self._down_block1 = PosEncConvBlock(
             ConvBlock(num_channels, 64), timestep_encoded_dim
         )
-        self._down_block2 = PosEncConvBlock(ConvBlock(64, 128), timestep_encoded_dim)
-        self._mid_block = PosEncConvBlock(ConvBlock(128, 256), timestep_encoded_dim)
-        self._up_block2 = PosEncConvBlock(
+        self._down_block2 = PosEncConvBlock(ConvBlock(64, 64), timestep_encoded_dim)
+        self._down_block3 = PosEncConvBlock(ConvBlock(64, 128), timestep_encoded_dim)
+        self._down_block4 = PosEncConvBlock(ConvBlock(128, 128), timestep_encoded_dim)
+        self._mid_block1 = PosEncConvBlock(ConvBlock(128, 256), timestep_encoded_dim)
+        self._mid_block2 = PosEncConvBlock(ConvBlock(256, 256), timestep_encoded_dim)
+        self._up_block4 = PosEncConvBlock(
             ConvBlock(256 + 128, 128), timestep_encoded_dim
         )
-        self._up_block1 = PosEncConvBlock(ConvBlock(128 + 64, 64), timestep_encoded_dim)
+        self._up_block3 = PosEncConvBlock(ConvBlock(128, 128), timestep_encoded_dim)
+        self._up_block2 = PosEncConvBlock(ConvBlock(128 + 64, 64), timestep_encoded_dim)
+        self._up_block1 = PosEncConvBlock(ConvBlock(64, 64), timestep_encoded_dim)
         self._out_block = ChannelWiseConv2d(64, num_channels)
 
         self._maxpool = nn.MaxPool2d(2)
@@ -130,24 +136,84 @@ class PosEncUNet(nn.Module):
 
         self._positional_encoder = PositionalEncoder(out_dims=timestep_encoded_dim)
 
-    def forward(
-        self, x: torch.Tensor, timesteps: torch.Tensor | list[int]
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         self._positional_encoder.adjust_device(x)
 
-        ts_codes = self._positional_encoder.encode(timesteps)
+        ts_codes = self._positional_encoder.encode(t)
         feat = x
-        res_feat1 = self._down_block1(feat, ts_codes)
-        feat = self._maxpool(res_feat1)
-        res_feat2 = self._down_block2(feat, ts_codes)
-        feat = self._maxpool(res_feat2)
 
-        feat = self._mid_block(feat, ts_codes)
+        feat = self._down_block1(feat, ts_codes)
+        feat2 = self._down_block2(feat, ts_codes)
+        feat = self._maxpool(feat2)
+
+        feat = self._down_block3(feat, ts_codes)
+        feat4 = self._down_block4(feat, ts_codes)
+        feat = self._maxpool(feat4)
+
+        feat = self._mid_block1(feat, ts_codes)
+        feat = self._mid_block2(feat, ts_codes)
 
         feat = self._upsample(feat)
-        feat = self._up_block2(torch.cat([feat, res_feat2], dim=1), ts_codes)
+        feat = self._up_block4(torch.cat([feat, feat4], dim=1), ts_codes)
+        feat = self._up_block3(feat, ts_codes)
+
         feat = self._upsample(feat)
-        feat = self._up_block1(torch.cat([feat, res_feat1], dim=1), ts_codes)
+        feat = self._up_block2(torch.cat([feat, feat2], dim=1), ts_codes)
+        feat = self._up_block1(feat, ts_codes)
+
+        out = self._out_block(feat)
+        return out
+
+
+class CelebAUNet(DDPMBase):
+    def __init__(self, num_channels: int, timestep_encoded_dim: int) -> None:
+        super().__init__()
+
+        self._down_block1 = PosEncConvBlock(
+            ConvBlock(num_channels, 64), timestep_encoded_dim
+        )
+        self._down_block2 = PosEncConvBlock(ConvBlock(64, 64), timestep_encoded_dim)
+        self._down_block3 = PosEncConvBlock(ConvBlock(64, 128), timestep_encoded_dim)
+        self._down_block4 = PosEncConvBlock(ConvBlock(128, 128), timestep_encoded_dim)
+        self._mid_block1 = PosEncConvBlock(ConvBlock(128, 256), timestep_encoded_dim)
+        self._mid_block2 = PosEncConvBlock(ConvBlock(256, 256), timestep_encoded_dim)
+        self._up_block4 = PosEncConvBlock(
+            ConvBlock(256 + 128, 128), timestep_encoded_dim
+        )
+        self._up_block3 = PosEncConvBlock(ConvBlock(128, 128), timestep_encoded_dim)
+        self._up_block2 = PosEncConvBlock(ConvBlock(128 + 64, 64), timestep_encoded_dim)
+        self._up_block1 = PosEncConvBlock(ConvBlock(64, 64), timestep_encoded_dim)
+        self._out_block = ChannelWiseConv2d(64, num_channels)
+
+        self._maxpool = nn.MaxPool2d(2)
+        self._upsample = nn.Upsample(scale_factor=2, mode="bilinear")
+
+        self._positional_encoder = PositionalEncoder(out_dims=timestep_encoded_dim)
+
+    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        self._positional_encoder.adjust_device(x)
+
+        ts_codes = self._positional_encoder.encode(t)
+        feat = x
+
+        feat = self._down_block1(feat, ts_codes)
+        feat2 = self._down_block2(feat, ts_codes)
+        feat = self._maxpool(feat2)
+
+        feat = self._down_block3(feat, ts_codes)
+        feat4 = self._down_block4(feat, ts_codes)
+        feat = self._maxpool(feat4)
+
+        feat = self._mid_block1(feat, ts_codes)
+        feat = self._mid_block2(feat, ts_codes)
+
+        feat = self._upsample(feat)
+        feat = self._up_block4(torch.cat([feat, feat4], dim=1), ts_codes)
+        feat = self._up_block3(feat, ts_codes)
+
+        feat = self._upsample(feat)
+        feat = self._up_block2(torch.cat([feat, feat2], dim=1), ts_codes)
+        feat = self._up_block1(feat, ts_codes)
 
         out = self._out_block(feat)
         return out

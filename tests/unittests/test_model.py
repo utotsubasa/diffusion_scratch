@@ -75,6 +75,6 @@ class TestPositionalEncoder:
         assert encoder.device == cuda
 
     def test_positional_encoder(self, encoder: PositionalEncoder):
-        timesteps = [1, 2, 3]
+        timesteps = torch.tensor([1, 2, 3])
         codes = encoder.encode(timesteps)
         assert codes.shape == (len(timesteps), self.CODE_OUT_DIMS)

@@ -1,4 +1,5 @@
 import torch
+import math
 
 
 class PositionalEncoder:
@@ -9,15 +10,9 @@ class PositionalEncoder:
     def adjust_device(self, sample: torch.Tensor) -> None:
         self._device = sample.device
 
-    def encode(self, timesteps: torch.Tensor | list[int]) -> torch.Tensor:
-        _timesteps = (
-            timesteps
-            if isinstance(timesteps, torch.Tensor)
-            else torch.tensor(timesteps)
-        )
-
-        assert _timesteps.dim() == 1
-        _timesteps = torch.unsqueeze(_timesteps, dim=1)
+    def encode(self, timesteps: torch.Tensor) -> torch.Tensor:
+        assert timesteps.dim() == 1
+        _timesteps = torch.unsqueeze(timesteps, dim=1)
 
         batch_size = len(_timesteps)
         indexes = (
@@ -26,7 +21,11 @@ class PositionalEncoder:
             )
             % self._out_dims
         )
-        rad_denos = 10000 ** (indexes / self._out_dims)
+        # rad_denos = 10000 ** (indexes / self._out_dims)
+        rad_denos = torch.exp(math.log(10000) * indexes / self._out_dims)
+        # import pdb
+
+        # pdb.set_trace()
         rads = _timesteps / rad_denos
 
         codes = torch.zeros_like(rads)
