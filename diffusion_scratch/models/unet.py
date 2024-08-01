@@ -6,6 +6,8 @@ from .base import DDPMBase
 
 
 class ChannelWiseConv2d(nn.Conv2d):
+    """A module of a `1 x 1` convolutional network"""
+
     def __init__(self, in_channels: int, out_channels: int, **kwargs: Any) -> None:
         super().__init__(*(in_channels, out_channels, 1), **kwargs)  # type: ignore
 
@@ -28,6 +30,8 @@ class CBRLayer(nn.Module):
 
 
 class ConvBlock(nn.Module):
+    """A block which consists of `CBRLayer`"""
+
     def __init__(
         self, in_channels: int, out_channels: int, num_layers: int = 2
     ) -> None:
@@ -62,6 +66,15 @@ class PosEncConvBlock(nn.Module):
         block: ConvBlock,
         timestep_encoded_dim: int,
     ) -> None:
+        """A Block which adds the timestep encoding feature to a given block
+
+        Parameters
+        ----------
+        block : ConvBlock
+            A target block
+        timestep_encoded_dim : int
+            The number of dimensions of timestep encoding.
+        """
         super().__init__()
         self._timestep_mlp = nn.Sequential(
             nn.Linear(timestep_encoded_dim, block.in_channels),
@@ -80,6 +93,12 @@ class PosEncConvBlock(nn.Module):
 
 
 class UNet(nn.Module):
+    """An example of simple UNet.
+
+    NOTE: This model is not used for training DDPM,
+    but is provided for reference purposes only.
+    """
+
     def __init__(self, num_channels: int) -> None:
         super().__init__()
 
@@ -112,60 +131,11 @@ class UNet(nn.Module):
 
 
 class PosEncUNet(DDPMBase):
-    def __init__(self, num_channels: int, timestep_encoded_dim: int) -> None:
-        super().__init__()
+    """A sample DDPM model.
 
-        self._down_block1 = PosEncConvBlock(
-            ConvBlock(num_channels, 64), timestep_encoded_dim
-        )
-        self._down_block2 = PosEncConvBlock(ConvBlock(64, 64), timestep_encoded_dim)
-        self._down_block3 = PosEncConvBlock(ConvBlock(64, 128), timestep_encoded_dim)
-        self._down_block4 = PosEncConvBlock(ConvBlock(128, 128), timestep_encoded_dim)
-        self._mid_block1 = PosEncConvBlock(ConvBlock(128, 256), timestep_encoded_dim)
-        self._mid_block2 = PosEncConvBlock(ConvBlock(256, 256), timestep_encoded_dim)
-        self._up_block4 = PosEncConvBlock(
-            ConvBlock(256 + 128, 128), timestep_encoded_dim
-        )
-        self._up_block3 = PosEncConvBlock(ConvBlock(128, 128), timestep_encoded_dim)
-        self._up_block2 = PosEncConvBlock(ConvBlock(128 + 64, 64), timestep_encoded_dim)
-        self._up_block1 = PosEncConvBlock(ConvBlock(64, 64), timestep_encoded_dim)
-        self._out_block = ChannelWiseConv2d(64, num_channels)
+    NOTE: Please inherit `DDPMBase` class when you create your own DDPM model.
+    """
 
-        self._maxpool = nn.MaxPool2d(2)
-        self._upsample = nn.Upsample(scale_factor=2, mode="bilinear")
-
-        self._positional_encoder = PositionalEncoder(out_dims=timestep_encoded_dim)
-
-    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        self._positional_encoder.adjust_device(x)
-
-        ts_codes = self._positional_encoder.encode(t)
-        feat = x
-
-        feat = self._down_block1(feat, ts_codes)
-        feat2 = self._down_block2(feat, ts_codes)
-        feat = self._maxpool(feat2)
-
-        feat = self._down_block3(feat, ts_codes)
-        feat4 = self._down_block4(feat, ts_codes)
-        feat = self._maxpool(feat4)
-
-        feat = self._mid_block1(feat, ts_codes)
-        feat = self._mid_block2(feat, ts_codes)
-
-        feat = self._upsample(feat)
-        feat = self._up_block4(torch.cat([feat, feat4], dim=1), ts_codes)
-        feat = self._up_block3(feat, ts_codes)
-
-        feat = self._upsample(feat)
-        feat = self._up_block2(torch.cat([feat, feat2], dim=1), ts_codes)
-        feat = self._up_block1(feat, ts_codes)
-
-        out = self._out_block(feat)
-        return out
-
-
-class CelebAUNet(DDPMBase):
     def __init__(self, num_channels: int, timestep_encoded_dim: int) -> None:
         super().__init__()
 

@@ -5,4 +5,7 @@ from torch.nn.modules.loss import (
 __all__ = ["Loss"]
 
 
-class Loss(TorchLoss): ...
+class Loss(TorchLoss):
+    """A base class of Loss."""
+
+    ...

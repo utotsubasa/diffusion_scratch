@@ -29,6 +29,8 @@ class TrainingInfo:
 
 
 class Trainer:
+    """A class for training DDPM model"""
+
     def __init__(
         self,
         model: DDPMBase,
@@ -58,6 +60,8 @@ class Trainer:
             )
 
     def __call__(self) -> None:
+        """Executes training"""
+
         self._model.to(self._settings.main_device)
         train_results: list[float] = []
 
@@ -70,10 +74,25 @@ class Trainer:
                 self._evaluate(epoch)
 
     def _evaluate(self, epoch: int) -> None:
+        """Evaluates image
+
+        Parameters
+        ----------
+        epoch : int
+            Current epoch
+        """
         assert self._sampler is not None
+
+        # sample images in a form of a tensor
         x_sampled = self._sampler.sample()
+
+        # convert images from a tensor to the PIL format
         images = ImageIO.tensor_to_images(x_sampled)
+
+        # arrange images
         fig = ImageIO.get_fig(images, 4, 2)
+
+        # save images
         log_dir = self._info.log_root / self._info.dataset_type / self._info.date
         image_filename = f"image_{epoch}.png"
         ImageIO.save_fig(fig, log_dir / image_filename)
@@ -98,14 +117,22 @@ class Trainer:
         self._optimizer.zero_grad()
 
         x = inputs.to(device=self._settings.main_device)
+
+        # sample timesteps at randam from a uniform distribution.
         t = torch.randint(
             low=1,
             high=self._settings.num_timesteps + 1,
             size=(len(x),),
             device=self._settings.main_device,
         )
+
+        # add noise to images
         x_noised, noise = self._diffuser.add_noise(x, t)
+
+        # predicts added noises from noisy images
         noise_pred = self._model(x_noised, t)
+
+        # compare added noises and predicted noises
         loss: torch.Tensor = self._loss(noise, noise_pred)
 
         loss.backward()

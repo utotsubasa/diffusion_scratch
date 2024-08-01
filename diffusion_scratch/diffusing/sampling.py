@@ -6,6 +6,8 @@ from tqdm import tqdm
 
 
 class Sampler(DDPMManager):
+    """A subclass of DDPMManager which manages backward/sampling process."""
+
     def __init__(
         self,
         scheduler: NoiseScheduler,
@@ -13,6 +15,18 @@ class Sampler(DDPMManager):
         size: tuple[int, ...],
         device: torch.device,
     ) -> None:
+        """
+        Parameters
+        ----------
+        scheduler : NoiseScheduler
+            A noise scheduler module
+        ddpm : DDPMBase
+            A target DDPM model
+        size : tuple[int, ...]
+            A size of image to be created
+        device : torch.device
+            A device
+        """
         super().__init__(scheduler)
         self._alphas = self._scheduler.alphas
         self._alpha_bars = self._scheduler.alpha_bars
@@ -21,10 +35,21 @@ class Sampler(DDPMManager):
         self._device = device
 
     def denoise(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        self._check_timestep(t)
-        # import pdb
+        """Reduces noises from given images just by one step
 
-        # pdb.set_trace()
+        Parameters
+        ----------
+        x : torch.Tensor
+            A tensor of target images. Shape: `(B, C, H, W)`
+        t : torch.Tensor
+            A tensor of target timesteps. Shape: `(B,)`
+
+        Returns
+        -------
+        torch.Tensor
+            A tensor of images where noises are reduced.
+        """
+        self._check_timestep(t)
         t_index = t - 1
         alpha = expand_dims(self._alphas[t_index], target=x)
         alpha_bar = expand_dims(self._alpha_bars[t_index], target=x)
@@ -46,6 +71,13 @@ class Sampler(DDPMManager):
         return next_x
 
     def sample(self) -> torch.Tensor:
+        """Samples images from a given distribution.
+
+        Returns
+        -------
+        torch.Tensor
+            A tensor of sampled images
+        """
         x = torch.randn(self._size, device=self._device)
 
         for i in tqdm(range(self._T, 0, -1), desc="sampling"):
@@ -54,13 +86,26 @@ class Sampler(DDPMManager):
             )
             x = self.denoise(x, t)
 
-        # import pdb
-
-        # pdb.set_trace()
-
         return x
 
     def _generate_noise(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        noise = torch.randn_like(x, device=x.device)
-        noise[t == 1] = 0
+        """Generates noises from a given distribution.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            A tensor of images as which the generated noises will be the same.
+        t : torch.Tensor
+            A tensor of timesteps.
+
+        Returns
+        -------
+        torch.Tensor
+            A tensor of noises of the given timesteps
+        """
+
+        if t == 1:
+            noise = torch.zeros_like(x, device=x.device, dtype=torch.float)
+        else:
+            noise = torch.randn_like(x, device=x.device)
         return noise
